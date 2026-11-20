@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "tsx src/db/migrate.ts && next build",
+    "build": "tsx src/db/deploy.ts && next build",
     "start": "next start",
     "lint": "eslint src --max-warnings 0",
     "db:generate": "drizzle-kit generate",
@@ -42,5 +42,10 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
