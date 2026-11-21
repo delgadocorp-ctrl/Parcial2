@@ -29,7 +29,10 @@ export default function CatalogoProductosPage() {
   const [categoriaId, setCategoriaId] = useState("");
   const [bajoMinimo, setBajoMinimo] = useState(false);
 
-  // Modal Nuevo Producto (Admin)
+  const [productoEditado, setProductoEditado] = useState<(typeof productos)[number] | null>(null);
+  const [activo, setActivo] = useState(true);
+
+  // Formulario de producto
   const [modalNuevoAbierto, setModalNuevoAbierto] = useState(false);
   const [nuevoCodigo, setNuevoCodigo] = useState("");
   const [nuevoDescripcion, setNuevoDescripcion] = useState("");
@@ -69,6 +72,7 @@ export default function CatalogoProductosPage() {
       if (busqueda) params.set("q", busqueda);
       if (categoriaId) params.set("categoriaId", categoriaId);
       if (bajoMinimo) params.set("bajoMinimo", "true");
+      params.set("activo", "todos");
       params.set("page", String(page));
       params.set("pageSize", "20");
 
@@ -96,7 +100,20 @@ export default function CatalogoProductosPage() {
     if (page === 1 && busqueda === q) void cargarProductos();
   };
 
-  const handleCrearProducto = async (e: React.FormEvent) => {
+  const abrirFormularioProducto = (producto: (typeof productos)[number] | null) => {
+    setProductoEditado(producto);
+    setActivo(producto?.activo ?? true);
+    setNuevoCodigo(producto?.codigo ?? "");
+    setNuevoDescripcion(producto?.descripcion ?? "");
+    setNuevoCategoriaId(String(producto?.categoria.id ?? categorias[0]?.id ?? ""));
+    setNuevoPrecioPesos(producto ? (producto.precio / 100).toFixed(2) : "");
+    setNuevoStockMinimo(String(producto?.stockMinimo ?? 5));
+    setNuevoStockInicial("0");
+    setErrorNuevo(null);
+    setModalNuevoAbierto(true);
+  };
+
+  const handleGuardarProducto = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorNuevo(null);
     setGuardandoNuevo(true);
@@ -112,26 +129,22 @@ export default function CatalogoProductosPage() {
         descripcion: nuevoDescripcion.trim(),
         categoriaId: Number(nuevoCategoriaId),
         precio: precioCentavos,
-        stockMinimo: parseInt(nuevoStockMinimo, 10) || 0,
-        stockInicial: parseInt(nuevoStockInicial, 10) || 0,
+        stockMinimo: Number(nuevoStockMinimo),
+        ...(productoEditado ? { activo } : { stockInicial: Number(nuevoStockInicial) }),
       };
 
-      const res = await fetch("/api/productos", {
-        method: "POST",
+      const res = await fetch(productoEditado ? `/api/productos/${productoEditado.id}` : "/api/productos", {
+        method: productoEditado ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error?.message || "Error al crear producto.");
+        throw new Error(data.error?.message || "Error al guardar producto.");
       }
 
       setModalNuevoAbierto(false);
-      setNuevoCodigo("");
-      setNuevoDescripcion("");
-      setNuevoPrecioPesos("");
-      setNuevoStockInicial("0");
       cargarProductos();
     } catch (err: unknown) {
       setErrorNuevo((err instanceof Error ? err.message : "Ocurrió un error inesperado."));
@@ -167,15 +180,13 @@ export default function CatalogoProductosPage() {
               Gestionar categorías
             </Link>
 
-            {usuario.rol === "admin" && (
-              <Button
-                onClick={() => setModalNuevoAbierto(true)}
-                className="text-xs font-bold bg-[#254d3c] hover:bg-[#34634d]"
-              >
-                <Plus className="w-4 h-4 mr-1.5" />
-                Nuevo producto
-              </Button>
-            )}
+            <Button
+              onClick={() => abrirFormularioProducto(null)}
+              className="text-xs font-bold bg-[#254d3c] hover:bg-[#34634d]"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Nuevo producto
+            </Button>
           </div>
         </div>
 
@@ -272,6 +283,7 @@ export default function CatalogoProductosPage() {
 
                       <td className="py-3 px-4 font-semibold text-brand-950">
                         {p.descripcion}
+                        {!p.activo && <Badge variant="neutral">Inactivo</Badge>}
                       </td>
 
                       <td className="py-3 px-4 text-brand-800/80">
@@ -309,18 +321,19 @@ export default function CatalogoProductosPage() {
 
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          {usuario.rol === "admin" && (
-                            <button
-                              type="button"
-                              onClick={() => setProductoParaMovimiento(p)}
-                              className="px-2 py-1 text-xs font-semibold rounded bg-brand-50 hover:bg-brand-100 text-brand-900 border border-brand-200 flex items-center gap-1"
-                              title="Registrar entrada/salida manual"
-                            >
-                              <ArrowUpDown className="w-3 h-3" />
-                              Mover
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setProductoParaMovimiento(p)}
+                            className="px-2 py-1 text-xs font-semibold rounded bg-brand-50 hover:bg-brand-100 text-brand-900 border border-brand-200 flex items-center gap-1"
+                            title="Registrar entrada/salida manual"
+                          >
+                            <ArrowUpDown className="w-3 h-3" />
+                            Mover
+                          </button>
 
+                          <Button size="sm" variant="outline" onClick={() => abrirFormularioProducto(p)}>
+                            Editar
+                          </Button>
                           <Link
                             href={`/productos/${p.id}`}
                             className="px-2 py-1 text-xs font-semibold rounded bg-brand-100 hover:bg-brand-200 text-brand-900 flex items-center gap-1"
@@ -371,11 +384,10 @@ export default function CatalogoProductosPage() {
       <Modal
         isOpen={modalNuevoAbierto}
         onClose={() => setModalNuevoAbierto(false)}
-        title="Nuevo Producto"
-        description="Agregá un artículo al catálogo del comercio"
+        title={productoEditado ? "Editar producto" : "Nuevo producto"}
         maxWidth="lg"
       >
-        <form onSubmit={handleCrearProducto} className="space-y-4">
+        <form onSubmit={handleGuardarProducto} className="space-y-4">
           {errorNuevo && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
               {errorNuevo}
@@ -434,6 +446,12 @@ export default function CatalogoProductosPage() {
               required
             />
 
+            {productoEditado ? (
+              <label className="sm:col-span-2 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
+                Producto activo
+              </label>
+            ) : (
             <div className="sm:col-span-2 p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-2">
               <Input
                 label="Stock inicial (unidades a ingresar en inventario)"
@@ -448,6 +466,7 @@ export default function CatalogoProductosPage() {
                 Si el stock inicial es mayor a 0, se grabará un movimiento de ingreso automático con motivo &quot;Stock inicial&quot;.
               </p>
             </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-brand-100">

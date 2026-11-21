@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiHandler } from "@/lib/api-handler";
+import { apiHandler, leerJson } from "@/lib/api-handler";
 import { listarClientes, crearCliente } from "@/services/clientes.service";
 
 export const GET = apiHandler(async (req: NextRequest) => {
@@ -15,7 +15,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
 });
 
 export const POST = apiHandler(async (req: NextRequest, usuario) => {
-  const body = await req.json();
+  const body = await leerJson(req);
   const nuevo = await crearCliente(usuario, body);
   return NextResponse.json(nuevo, { status: 201 });
 });

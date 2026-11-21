@@ -40,7 +40,7 @@ export async function listarClientes(filtros: {
   const pageSize = Math.min(100, Math.max(1, Number(filtros.pageSize) || 20));
   const soloConDeuda = String(filtros.conDeuda) === "true";
 
-  // Subquery o cálculo de saldos por cliente
+  // Calificar el ID externo para que la subconsulta no use el ID del movimiento.
   const todosClientes = await db
     .select({
       id: clientes.id,
@@ -53,8 +53,8 @@ export async function listarClientes(filtros: {
       cuentaCorriente: clientes.cuentaCorriente,
       limiteCredito: clientes.limiteCredito,
       activo: clientes.activo,
-      debitos: sql<number>`coalesce((select sum(mc.importe) from movimientos_cuenta mc where mc.cliente_id = ${clientes.id} and mc.tipo = 'debito'), 0)`,
-      creditos: sql<number>`coalesce((select sum(mc.importe) from movimientos_cuenta mc where mc.cliente_id = ${clientes.id} and mc.tipo = 'credito'), 0)`,
+      debitos: sql<number>`coalesce((select sum(mc.importe) from movimientos_cuenta mc where mc.cliente_id = clientes.id and mc.tipo = 'debito'), 0)`,
+      creditos: sql<number>`coalesce((select sum(mc.importe) from movimientos_cuenta mc where mc.cliente_id = clientes.id and mc.tipo = 'credito'), 0)`,
     })
     .from(clientes);
 

@@ -96,7 +96,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        {/* Demo Fast Logins for evaluation */}
+        {process.env.NODE_ENV === "development" && (
         <div className="pt-4 border-t border-brand-100 space-y-2.5">
           <p className="text-[11px] font-bold uppercase tracking-wider text-center text-brand-800/60">
             Accesos de prueba para evaluación
@@ -131,6 +131,7 @@ export default function LoginPage() {
             Contraseña común: <code className="bg-gray-100 px-1 py-0.5 rounded">Password123!</code>
           </p>
         </div>
+        )}
       </div>
     </div>
   );

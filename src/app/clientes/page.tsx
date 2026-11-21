@@ -29,6 +29,7 @@ export default function ClientesPage() {
 
   // Modales
   const [modalNuevoAbierto, setModalNuevoAbierto] = useState(false);
+  const [clienteEditado, setClienteEditado] = useState<(typeof clientes)[number] | null>(null);
   const [clienteParaPago, setClienteParaPago] = useState<Awaited<ReturnType<typeof import("@/services/clientes.service").listarClientes>>["data"][number] | null>(null);
 
   useEffect(() => {
@@ -244,6 +245,9 @@ export default function ClientesPage() {
                             </button>
                           )}
 
+                          <Button size="sm" variant="outline" onClick={() => setClienteEditado(c)}>
+                            Editar
+                          </Button>
                           <Link
                             href={`/clientes/${c.id}`}
                             className="px-2.5 py-1.5 text-xs font-semibold rounded bg-brand-100 hover:bg-brand-200 text-brand-900 flex items-center gap-1 transition-colors"
@@ -295,6 +299,15 @@ export default function ClientesPage() {
         onClose={() => setModalNuevoAbierto(false)}
         onClienteCreado={cargarClientes}
       />
+
+      {clienteEditado && (
+        <ModalNuevoCliente
+          isOpen
+          cliente={clienteEditado}
+          onClose={() => setClienteEditado(null)}
+          onClienteCreado={cargarClientes}
+        />
+      )}
 
       {/* Modal Registrar Pago */}
       {clienteParaPago && (

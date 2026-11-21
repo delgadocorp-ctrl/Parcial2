@@ -6,9 +6,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { ModalNuevoCliente } from "@/components/modals/ModalNuevoCliente";
+import { cargarPaginas } from "@/lib/cargar-paginas";
 import { formatearMoneda } from "@/lib/formatters";
 import { Trash2, Plus, Minus, UserPlus, CreditCard, Banknote, Wallet, Receipt, AlertCircle } from "lucide-react";
 
@@ -40,9 +40,6 @@ export default function NuevaVentaPage() {
   // Forma de pago
   const [formaPago, setFormaPago] = useState<"contado" | "tarjeta" | "cuenta_corriente">("contado");
   const [montoRecibidoPesos, setMontoRecibidoPesos] = useState<string>("");
-  const [tarjetaTipo, setTarjetaTipo] = useState<"debito" | "credito">("credito");
-  const [tarjetaMarca, setTarjetaMarca] = useState<string>("Visa");
-  const [tarjetaUltimos4, setTarjetaUltimos4] = useState<string>("");
 
   // Modales y control de errores
   const [modalClienteAbierto, setModalClienteAbierto] = useState(false);
@@ -55,30 +52,26 @@ export default function NuevaVentaPage() {
   useEffect(() => {
     async function cargarDatos() {
       try {
-        const [meRes, prodRes, cliRes] = await Promise.all([
-          fetch("/api/auth/me"),
-          fetch("/api/productos?activo=true&pageSize=100"),
-          fetch("/api/clientes?pageSize=100"),
-        ]);
-
-        if (!meRes.ok) {
+        const meRes = await fetch("/api/auth/me");
+        if (meRes.status === 401) {
           router.push("/login");
           return;
         }
-
-        const me = await meRes.json();
-        const prods = await prodRes.json();
-        const clis = await cliRes.json();
-
-        setUsuario(me);
-        setProductosCatalogo(prods.data || []);
-        setClientesLista(clis.data || []);
-
-        if (prods.data && prods.data.length > 0) {
-          setProductoIdAAgregar(String(prods.data[0].id));
+        if (!meRes.ok) {
+          throw new Error("No se pudo verificar la sesión.");
         }
-      } catch (err) {
-        console.error(err);
+
+        const [productos, clientes] = await Promise.all([
+          cargarPaginas<(typeof productosCatalogo)[number]>("/api/productos?activo=true"),
+          cargarPaginas<(typeof clientesLista)[number]>("/api/clientes"),
+        ]);
+
+        setUsuario(await meRes.json());
+        setProductosCatalogo(productos);
+        setClientesLista(clientes);
+        setProductoIdAAgregar(productos[0] ? String(productos[0].id) : "");
+      } catch (error) {
+        setErrorVenta(error instanceof Error ? error.message : "No se pudo iniciar la venta.");
       } finally {
         setCargandoInicial(false);
       }
@@ -220,13 +213,6 @@ export default function NuevaVentaPage() {
       return;
     }
 
-    if (formaPago === "tarjeta") {
-      if (!tarjetaUltimos4 || tarjetaUltimos4.length !== 4 || !/^\d{4}$/.test(tarjetaUltimos4)) {
-        setErrorVenta("Debes ingresar exactamente los últimos 4 dígitos de la tarjeta.");
-        return;
-      }
-    }
-
     setErrorVenta(null);
     setConfirmando(true);
 
@@ -244,15 +230,6 @@ export default function NuevaVentaPage() {
                 montoRecibido: montoRecibidoPesos
                   ? Math.round(parseFloat(montoRecibidoPesos) * 100)
                   : totalFacturaCentavos,
-              }
-            : {}),
-          ...(formaPago === "tarjeta"
-            ? {
-                tarjeta: {
-                  tipo: tarjetaTipo,
-                  marca: tarjetaMarca,
-                  ultimos4: tarjetaUltimos4,
-                },
               }
             : {}),
         },
@@ -285,7 +262,11 @@ export default function NuevaVentaPage() {
     );
   }
 
-  if (!usuario) return null;
+  if (!usuario) {
+    return errorVenta ? (
+      <p className="p-6 text-red-700" role="alert">{errorVenta}</p>
+    ) : null;
+  }
 
   return (
     <AppLayout usuario={usuario}>
@@ -657,44 +638,9 @@ export default function NuevaVentaPage() {
                       <CreditCard className="w-4 h-4 text-blue-700" />
                       <div className="flex-1">
                         <span className="text-xs font-bold text-brand-950 block">Tarjeta de Débito / Crédito</span>
-                        <span className="text-[10px] text-brand-800/60">Simulado sin datos sensibles</span>
+                        <span className="text-[10px] text-brand-800/60">Pago simulado</span>
                       </div>
                     </label>
-
-                    {formaPago === "tarjeta" && (
-                      <div className="p-3 bg-brand-50/50 rounded-lg space-y-3 border border-brand-200/60 text-xs">
-                        <div className="grid grid-cols-2 gap-2">
-                          <Select
-                            label="Tipo de tarjeta"
-                            value={tarjetaTipo}
-                            onChange={(e) => setTarjetaTipo(e.target.value as "debito" | "credito")}
-                          >
-                            <option value="debito">Débito</option>
-                            <option value="credito">Crédito</option>
-                          </Select>
-
-                          <Select
-                            label="Marca"
-                            value={tarjetaMarca}
-                            onChange={(e) => setTarjetaMarca(e.target.value)}
-                          >
-                            <option value="Visa">Visa</option>
-                            <option value="Mastercard">Mastercard</option>
-                            <option value="Naranja">Naranja</option>
-                            <option value="Cabal">Cabal</option>
-                          </Select>
-                        </div>
-
-                        <Input
-                          label="Últimos 4 dígitos *"
-                          placeholder="Ej. 4242"
-                          maxLength={4}
-                          value={tarjetaUltimos4}
-                          onChange={(e) => setTarjetaUltimos4(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                          required
-                        />
-                      </div>
-                    )}
 
                     {/* Opción 3: Cuenta Corriente */}
                     <label

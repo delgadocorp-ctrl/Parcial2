@@ -17,18 +17,18 @@ Sistema integral de gestión comercial minorista desarrollado para el 2º parcia
 
 ## 🌐 Enlaces del Proyecto
 - **Repositorio de GitHub:** `https://github.com/delgadocorp-ctrl/Parcial2.git`
-- **Aplicación Publicada (Vercel):** `[URL de Vercel tras deploy]`
+- **Aplicación en Vercel:** pendiente de publicación.
 - **Base de Datos en Producción:** Turso (libSQL)
 
 ---
 
 ## 🔑 Credenciales de Acceso para Evaluación
-El sistema incluye datos de prueba precargados con dos roles diferenciados:
+La base de prueba local incluye dos roles:
 
 | Rol | Correo / Usuario | Contraseña | Permisos |
 | :--- | :--- | :--- | :--- |
-| **Administrador** | `admin@comercio.test` | `Password123!` | Acceso total: ventas, stock manual, anulación de facturas, usuarios y configuración. |
-| **Vendedor** | `vendedor@comercio.test` | `Password123!` | Operación de mostrador: emisión de ventas, cobro de cuenta corriente, alta de clientes y consulta de catálogo. |
+| **Administrador** | `admin@comercio.test` | `Password123!` | Operación comercial y administración de usuarios. |
+| **Vendedor** | `vendedor@comercio.test` | `Password123!` | Ventas, productos, stock, clientes y pagos. |
 
 ---
 
@@ -69,7 +69,7 @@ pnpm run dev
 
 La aplicación quedará disponible en [http://localhost:3000](http://localhost:3000).
 
-El comando `pnpm run build` ejecuta `src/db/deploy.ts` antes de compilar: aplica migraciones y carga datos iniciales únicamente si la base no tiene usuarios. En producción deben configurarse `DATABASE_URL` (o `TURSO_DATABASE_URL`) y un `SESSION_SECRET` de al menos 32 caracteres. `SEED_RESET` no borra ni reemplaza datos existentes; solo permite inicializar una base vacía.
+El comando `pnpm run build` ejecuta `src/db/deploy.ts` antes de compilar: aplica migraciones y carga datos iniciales únicamente si la base no tiene usuarios. En producción deben configurarse `DATABASE_URL` (o `TURSO_DATABASE_URL`), el token de Turso y un `SESSION_SECRET` de al menos 32 caracteres. Para inicializar una base de producción vacía, configurá `SEED_ADMIN_PASSWORD` y `SEED_VENDEDOR_PASSWORD` con contraseñas distintas de al menos 12 caracteres. Los correos de evaluación son los de la tabla. Compartí las contraseñas de producción con el evaluador por un canal privado. `SEED_RESET` no borra ni reemplaza datos existentes; solo permite inicializar una base vacía.
 
 ---
 
@@ -84,7 +84,7 @@ Siguiendo las pautas arquitectónicas del parcial, la aplicación respeta una es
    - `cuenta.service.ts`: `registrarPago()` valida que el pago no supere la deuda y registra el crédito y recibo correlativo (`R 0001-00000001`).
    - `clientes.service.ts`: Calcula dinámicamente el saldo exacto a partir de los movimientos de cuenta corriente.
    - `tablero.service.ts`: Indicadores del día, del mes, cuentas corrientes y ventas continuas de los últimos 30 días sin huecos.
-3. **Capa de Adaptadores API REST (`src/app/api/`):** 31 Route Handlers organizados bajo convención `/api/*` que envuelven las llamadas a los servicios, validan sesión y rol, y traducen errores al contrato unificado `{ error: { code, message, details } }`.
+3. **Capa de Adaptadores API REST (`src/app/api/`):** Route Handlers organizados bajo convención `/api/*` que envuelven las llamadas a los servicios, validan sesión y rol, y traducen errores al contrato unificado `{ error: { code, message, details } }`.
 4. **Capa de Interfaz (`src/app/`, `src/components/`):** Vistas responsivas con panel lateral fijo, soporte completo para teclado en el mostrador, avisos claros y comprobantes imprimibles.
 
 ---
@@ -94,11 +94,11 @@ Siguiendo las pautas arquitectónicas del parcial, la aplicación respeta una es
 - **RF-V1 a RF-V6 (Nueva Venta y Facturación):** Facturación en mostrador con selección de comprador (Consumidor Final o Cliente registrado), modal de alta rápida de clientes sin perder los ítems cargados, verificación de stock atómica y cálculo de precios desde el servidor.
 - **RF-V5 (Formas de Pago):**
   - *Contado:* Cálculo automático de vuelto.
-  - *Tarjeta:* Registro seguro de marca, tipo (débito/crédito) y últimos 4 dígitos. Rechaza números completos por esquema.
+  - *Tarjeta:* Pago simulado, sin ingreso de datos de tarjeta.
   - *Cuenta Corriente:* Exclusiva para clientes registrados y habilitados; respeta el límite de crédito disponible.
-- **RF-V7 a RF-V9 (Comprobantes y Anulaciones):** Vista imprimible formal de comprobante de venta. Historial de facturas con filtros avanzados y paginación. Anulación exclusiva para administradores con motivo obligatorio, reingresando stock y acreditando saldo.
+- **Comprobantes:** Vista imprimible del comprobante interno e historial con filtros y paginación.
 - **RF-P1 a RF-P7 (Productos y Stock):** Catálogo con búsqueda sin distinción de mayúsculas ni acentos, filtro por categoría y marca visible para productos bajo el stock mínimo. Historial cronológico de movimientos de stock. Gestión de categorías con protección ante desactivación si contienen productos activos (`CATEGORIA_EN_USO`).
-- **RF-C1 a RF-C7 (Clientes y Cuenta Corriente):** Listado de clientes con saldos calculados en tiempo real. Ficha individual con historial de movimientos cronológicos (débitos por ventas, créditos por pagos y anulaciones) con saldo acumulado renglón por renglón. Registro de pagos con emisión de recibo oficial numerado. Ranking de saldos deudores (`/clientes/saldos`).
+- **RF-C1 a RF-C7 (Clientes y Cuenta Corriente):** Listado de clientes con saldos calculados en tiempo real. Ficha individual con historial de movimientos cronológicos (débitos por ventas, créditos por pagos) con saldo acumulado renglón por renglón. Registro de pagos con fecha, importe y recibo interno numerado. Ranking de saldos deudores (`/clientes/saldos`).
 - **RF-U1 a RF-U5 (Usuarios y Seguridad):** Autenticación con cookies `httpOnly`, protección de rutas y permisos verificados en el servidor (un vendedor recibe `403 SIN_PERMISO` si invoca rutas de administración). Protección contra auto-desactivación del propio administrador. Cambio de contraseña propio y reseteo administrativo.
 - **RF-T1 a RF-T3 (Tablero e Indicadores):** KPI cards (ventas de hoy, del mes, cuentas corrientes, productos bajo mínimo), gráfico de evolución de ventas diarias de 30 días continuos con Chart.js, gráfico de ventas por medio de pago y ranking de los 5 artículos más vendidos del mes.
 

@@ -8,19 +8,20 @@ import { Button } from "@/components/ui/Button";
 
 interface ModalNuevoClienteProps {
   isOpen: boolean;
+  cliente?: Awaited<ReturnType<typeof import("@/services/clientes.service").listarClientes>>["data"][number];
   onClose: () => void;
   onClienteCreado: (cliente: Awaited<ReturnType<typeof import("@/services/clientes.service").crearCliente>>) => void;
 }
 
-export function ModalNuevoCliente({ isOpen, onClose, onClienteCreado }: ModalNuevoClienteProps) {
-  const [tipoDoc, setTipoDoc] = useState<"DNI" | "CUIT">("DNI");
-  const [nroDoc, setNroDoc] = useState("");
-  const [nombre, setNombre] = useState("");
-  const [domicilio, setDomicilio] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [email, setEmail] = useState("");
-  const [cuentaCorriente, setCuentaCorriente] = useState(false);
-  const [limiteCredito, setLimiteCredito] = useState("");
+export function ModalNuevoCliente({ isOpen, onClose, onClienteCreado, cliente }: ModalNuevoClienteProps) {
+  const [tipoDoc, setTipoDoc] = useState<"DNI" | "CUIT">(cliente?.tipoDoc ?? "DNI");
+  const [nroDoc, setNroDoc] = useState(cliente?.nroDoc ?? "");
+  const [nombre, setNombre] = useState(cliente?.nombre ?? "");
+  const [domicilio, setDomicilio] = useState(cliente?.domicilio ?? "");
+  const [telefono, setTelefono] = useState(cliente?.telefono ?? "");
+  const [email, setEmail] = useState(cliente?.email ?? "");
+  const [cuentaCorriente, setCuentaCorriente] = useState(cliente?.cuentaCorriente ?? true);
+  const [limiteCredito, setLimiteCredito] = useState(cliente?.limiteCredito == null ? "" : (cliente.limiteCredito / 100).toFixed(2));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,15 +48,15 @@ export function ModalNuevoCliente({ isOpen, onClose, onClienteCreado }: ModalNue
         limiteCredito: limiteCredito ? Math.round(Number(limiteCredito) * 100) : null,
       };
 
-      const res = await fetch("/api/clientes", {
-        method: "POST",
+      const res = await fetch(cliente ? `/api/clientes/${cliente.id}` : "/api/clientes", {
+        method: cliente ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error?.message || "Error al crear cliente");
+        throw new Error(data.error?.message || "Error al guardar cliente");
       }
 
       onClienteCreado(data);
@@ -66,7 +67,7 @@ export function ModalNuevoCliente({ isOpen, onClose, onClienteCreado }: ModalNue
       setDomicilio("");
       setTelefono("");
       setEmail("");
-      setCuentaCorriente(false);
+      setCuentaCorriente(true);
       setLimiteCredito("");
     } catch (err: unknown) {
       setError((err instanceof Error ? err.message : "Ocurrió un error inesperado."));
@@ -79,7 +80,7 @@ export function ModalNuevoCliente({ isOpen, onClose, onClienteCreado }: ModalNue
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nuevo Cliente"
+      title={cliente ? "Editar cliente" : "Nuevo cliente"}
       description="Registrá los datos para futuras ventas y cuenta corriente"
       maxWidth="lg"
     >

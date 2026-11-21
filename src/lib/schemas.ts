@@ -76,7 +76,7 @@ export const clienteCrearSchema = z
     domicilio: z.string().trim().optional().nullable(),
     telefono: z.string().trim().optional().nullable(),
     email: z.string().trim().email("El correo no es válido").optional().nullable().or(z.literal("")),
-    cuentaCorriente: z.boolean().default(false),
+    cuentaCorriente: z.boolean().default(true),
     limiteCredito: z.number().int().safe().min(0).optional().nullable(),
   })
   .refine(
@@ -100,6 +100,7 @@ export const clienteEditarSchema = z.object({
 });
 
 export const pagoCrearSchema = z.object({
+  fecha: z.string().datetime({ offset: true }).optional(),
   importe: z.number().int().safe().positive("El importe debe ser mayor que cero"),
   medio: z.enum(["efectivo", "transferencia", "tarjeta_debito"], {
     errorMap: () => ({ message: "El medio debe ser efectivo, transferencia o tarjeta_debito" }),
@@ -111,14 +112,6 @@ const itemFacturaSchema = z.object({
   productoId: z.number().int().positive("ID de producto inválido"),
   cantidad: z.number().int().safe().positive("La cantidad debe ser al menos 1"),
 });
-
-const tarjetaSchema = z
-  .object({
-    tipo: z.enum(["debito", "credito"]),
-    marca: z.string().trim().min(1, "La marca de tarjeta es requerida"),
-    ultimos4: z.string().regex(/^\d{4}$/, "Debe ingresar exactamente los últimos 4 dígitos"),
-  })
-  .strict();
 
 export const facturaCrearSchema = z
   .object({
@@ -137,20 +130,6 @@ export const facturaCrearSchema = z
       .object({
         forma: z.enum(["contado", "tarjeta", "cuenta_corriente"]),
         montoRecibido: z.number().int().safe().positive().optional().nullable(),
-        tarjeta: tarjetaSchema.optional().nullable(),
       })
       .strict(),
-  })
-  .refine(
-    (data) => {
-      if (data.pago.forma === "tarjeta") {
-        return !!data.pago.tarjeta;
-      }
-      return true;
-    },
-    { message: "Faltan los datos de la tarjeta", path: ["pago", "tarjeta"] }
-  );
-
-export const anulacionFacturaSchema = z.object({
-  motivo: z.string().trim().min(3, "El motivo de anulación es obligatorio"),
-});
+  }).strict();

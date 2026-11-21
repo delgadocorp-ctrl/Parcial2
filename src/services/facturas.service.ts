@@ -9,7 +9,7 @@ import {
 } from "@/db/schema";
 import { eq, and, or, sql, desc, gte, lte } from "drizzle-orm";
 import { ApiError } from "@/lib/errors";
-import { facturaCrearSchema, anulacionFacturaSchema } from "@/lib/schemas";
+import { facturaCrearSchema } from "@/lib/schemas";
 import { SesionUsuario } from "@/lib/auth";
 import { formatearNumeroFactura } from "@/lib/formatters";
 import { moverStock } from "./stock.service";
@@ -200,9 +200,6 @@ export async function emitirFactura(usuario: SesionUsuario, rawData: unknown) {
         vendedorNombre: usuario.nombre,
         total: totalFactura,
         formaPago: data.pago.forma,
-        tarjetaTipo: data.pago.tarjeta?.tipo || null,
-        tarjetaMarca: data.pago.tarjeta?.marca || null,
-        tarjetaUltimos4: data.pago.tarjeta?.ultimos4 || null,
         montoRecibido,
         vuelto,
         estado: "emitida",
@@ -282,101 +279,10 @@ export async function emitirFactura(usuario: SesionUsuario, rawData: unknown) {
         ...(nuevaFactura.formaPago === "contado"
           ? { montoRecibido: nuevaFactura.montoRecibido, vuelto: nuevaFactura.vuelto }
           : {}),
-        ...(nuevaFactura.formaPago === "tarjeta"
-          ? {
-              tarjeta: {
-                tipo: nuevaFactura.tarjetaTipo,
-                marca: nuevaFactura.tarjetaMarca,
-                ultimos4: nuevaFactura.tarjetaUltimos4,
-              },
-            }
-          : {}),
       },
       ...(nuevoSaldoCliente !== null ? { saldoCliente: nuevoSaldoCliente } : {}),
     };
   });
-}
-
-/**
- * RF-V9 / Regla 5: Anulación de factura (solo administrador)
- * Reingresa el stock y registra el crédito en la cuenta si fue a cuenta corriente.
- */
-export async function anularFactura(
-  usuario: SesionUsuario,
-  id: number,
-  rawData: unknown
-) {
-  if (usuario.rol !== "admin") {
-    throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede anular facturas.");
-  }
-
-  const data = anulacionFacturaSchema.parse(rawData);
-
-  const [f] = await db
-    .select()
-    .from(facturas)
-    .where(eq(facturas.id, id))
-    .limit(1);
-
-  if (!f) {
-    throw new ApiError(404, "NO_ENCONTRADO", "Factura no encontrada.");
-  }
-
-  if (f.estado === "anulada") {
-    throw new ApiError(409, "FACTURA_ANULADA", "La factura ya se encuentra anulada.");
-  }
-
-  const items = await db
-    .select()
-    .from(facturaItems)
-    .where(eq(facturaItems.facturaId, id));
-
-  await db.transaction(async (tx) => {
-    const fecha = new Date().toISOString();
-
-    // 1. Marcar como anulada
-    const actualizadas = await tx
-      .update(facturas)
-      .set({
-        estado: "anulada",
-        motivoAnulacion: data.motivo,
-        fechaAnulacion: fecha,
-        usuarioAnulacionId: usuario.id,
-      })
-      .where(and(eq(facturas.id, id), eq(facturas.estado, "emitida")))
-      .returning();
-    if (actualizadas.length === 0) {
-      throw new ApiError(409, "FACTURA_ANULADA", "La factura ya se encuentra anulada.");
-    }
-
-    // 2. Reingreso de stock por cada ítem
-    for (const it of items) {
-      await moverStock(tx, {
-        productoId: it.productoId,
-        tipo: "anulacion",
-        cantidad: it.cantidad, // Positivo para reingresar
-        motivo: `Anulación Factura ${f.numeroFormateado}`,
-        observacion: data.motivo,
-        facturaId: f.id,
-        usuarioId: usuario.id,
-        fecha,
-      });
-    }
-
-    // 3. Si fue a cuenta corriente, graba crédito en la cuenta
-    if (f.formaPago === "cuenta_corriente" && f.clienteId) {
-      await tx.insert(movimientosCuenta).values({
-        clienteId: f.clienteId,
-        tipo: "credito",
-        importe: f.total,
-        fecha,
-        descripcion: `Anulación Factura ${f.numeroFormateado}`,
-        facturaId: f.id,
-      });
-    }
-
-  });
-  return await obtenerFactura(id);
 }
 
 /**
@@ -501,9 +407,6 @@ export async function obtenerFactura(id: number) {
       fecha: facturas.fecha,
       total: facturas.total,
       formaPago: facturas.formaPago,
-      tarjetaTipo: facturas.tarjetaTipo,
-      tarjetaMarca: facturas.tarjetaMarca,
-      tarjetaUltimos4: facturas.tarjetaUltimos4,
       montoRecibido: facturas.montoRecibido,
       vuelto: facturas.vuelto,
       estado: facturas.estado,
@@ -578,15 +481,6 @@ export async function obtenerFactura(id: number) {
       forma: f.formaPago,
       ...(f.formaPago === "contado"
         ? { montoRecibido: f.montoRecibido, vuelto: f.vuelto }
-        : {}),
-      ...(f.formaPago === "tarjeta"
-        ? {
-            tarjeta: {
-              tipo: f.tarjetaTipo,
-              marca: f.tarjetaMarca,
-              ultimos4: f.tarjetaUltimos4,
-            },
-          }
         : {}),
     },
     ...(anulacionInfo ? { anulacion: anulacionInfo } : {}),

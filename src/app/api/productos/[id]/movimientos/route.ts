@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiHandler } from "@/lib/api-handler";
+import { apiHandler, leerJson } from "@/lib/api-handler";
 import { listarMovimientosStock, registrarMovimientoManual } from "@/services/stock.service";
-import { ApiError } from "@/lib/errors";
 
 export const GET = apiHandler<{ id: string }>(
   async (req: NextRequest, _usuario, { params }) => {
@@ -17,11 +16,8 @@ export const GET = apiHandler<{ id: string }>(
 
 export const POST = apiHandler<{ id: string }>(
   async (req: NextRequest, usuario, { params }) => {
-    if (usuario.rol !== "admin") {
-      throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede registrar movimientos manuales.");
-    }
     const productoId = Number(params.id);
-    const body = await req.json();
+    const body = await leerJson(req);
     const mov = await registrarMovimientoManual(usuario, productoId, body);
     return NextResponse.json(mov, { status: 201 });
   }

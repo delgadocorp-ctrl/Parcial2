@@ -7,9 +7,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 import { Button } from "@/components/ui/Button";
 
-import { ModalAnularFactura } from "@/components/modals/ModalAnularFactura";
 import { formatearMoneda, formatearFechaHora } from "@/lib/formatters";
-import { Printer, ArrowLeft, Ban, AlertOctagon } from "lucide-react";
+import { Printer, ArrowLeft, AlertOctagon } from "lucide-react";
 
 export default function DetalleFacturaPage() {
   const params = useParams();
@@ -20,7 +19,6 @@ export default function DetalleFacturaPage() {
   const [factura, setFactura] = useState<Awaited<ReturnType<typeof import("@/services/facturas.service").obtenerFactura>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalAnularAbierto, setModalAnularAbierto] = useState(false);
 
   const cargarFactura = useCallback(async () => {
     setIsLoading(true);
@@ -90,18 +88,6 @@ export default function DetalleFacturaPage() {
           </Link>
 
           <div className="flex items-center gap-3">
-            {usuario.rol === "admin" && factura.estado === "emitida" && (
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setModalAnularAbierto(true)}
-                className="text-xs font-bold"
-              >
-                <Ban className="w-3.5 h-3.5 mr-1" />
-                Anular factura
-              </Button>
-            )}
-
             <Button
               variant="outline"
               size="sm"
@@ -241,11 +227,6 @@ export default function DetalleFacturaPage() {
                   <p>Vuelto entregado: <span className="font-semibold">{formatearMoneda(factura.pago.vuelto)}</span></p>
                 </>
               )}
-              {factura.pago.forma === "tarjeta" && factura.pago.tarjeta && (
-                <p>
-                  Tarjeta {factura.pago.tarjeta.tipo?.toUpperCase()} {factura.pago.tarjeta.marca} (terminada en {factura.pago.tarjeta.ultimos4})
-                </p>
-              )}
               {factura.pago.forma === "cuenta_corriente" && (
                 <p className="text-amber-800 font-medium">
                   Imputado a la cuenta corriente del cliente.
@@ -274,14 +255,6 @@ export default function DetalleFacturaPage() {
         </div>
       </div>
 
-      {/* Modal de Anulación */}
-      <ModalAnularFactura
-        isOpen={modalAnularAbierto}
-        onClose={() => setModalAnularAbierto(false)}
-        facturaId={factura.id}
-        numeroFormateado={factura.numeroFormateado}
-        onFacturaAnulada={cargarFactura}
-      />
     </AppLayout>
   );
 }

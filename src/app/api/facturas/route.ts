@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiHandler } from "@/lib/api-handler";
+import { apiHandler, leerJson } from "@/lib/api-handler";
 import { listarFacturas, emitirFactura } from "@/services/facturas.service";
 
 export const GET = apiHandler(async (req: NextRequest) => {
@@ -30,7 +30,7 @@ export const GET = apiHandler(async (req: NextRequest) => {
 });
 
 export const POST = apiHandler(async (req: NextRequest, usuario) => {
-  const body = await req.json();
+  const body = await leerJson(req);
   const factura = await emitirFactura(usuario, body);
   return NextResponse.json(factura, { status: 201 });
 });

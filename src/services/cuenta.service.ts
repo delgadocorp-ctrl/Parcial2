@@ -127,7 +127,7 @@ export async function registrarPago(
 
     const siguienteNum = (ultimoPago?.id || 0) + 1;
     const numeroRecibo = formatearNumeroRecibo(1, siguienteNum);
-    const fecha = new Date().toISOString();
+    const fecha = data.fecha ? new Date(data.fecha).toISOString() : new Date().toISOString();
 
     const [nuevoPago] = await tx
       .insert(pagos)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiHandler } from "@/lib/api-handler";
+import { apiHandler, leerJson } from "@/lib/api-handler";
 import { listarCategorias, crearCategoria } from "@/services/categorias.service";
 import { ApiError } from "@/lib/errors";
 
@@ -14,7 +14,7 @@ export const POST = apiHandler(async (req: NextRequest, usuario) => {
   if (usuario.rol !== "admin") {
     throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede crear categorías.");
   }
-  const body = await req.json();
+  const body = await leerJson(req);
   const nueva = await crearCategoria(usuario, body);
   return NextResponse.json(nueva, { status: 201 });
 });
