@@ -22,6 +22,17 @@ interface Options {
   roles?: Array<"admin" | "vendedor">;
 }
 
+export async function leerJson(req: NextRequest): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new ApiError(400, "JSON_INVALIDO", "El cuerpo no es JSON válido.");
+    }
+    throw error;
+  }
+}
+
 export function handleErrors(err: unknown) {
   if (err instanceof ApiError) {
     return NextResponse.json(
@@ -50,18 +61,6 @@ export function handleErrors(err: unknown) {
         },
       },
       { status: 422 }
-    );
-  }
-
-  if (err instanceof SyntaxError && "body" in err) {
-    return NextResponse.json(
-      {
-        error: {
-          code: "JSON_INVALIDO",
-          message: "El cuerpo no es JSON válido.",
-        },
-      },
-      { status: 400 }
     );
   }
 

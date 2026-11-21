@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiHandler } from "@/lib/api-handler";
+import { apiHandler, leerJson } from "@/lib/api-handler";
 import { listarUsuarios, crearUsuario } from "@/services/usuarios.service";
 
 export const GET = apiHandler(
@@ -18,7 +18,7 @@ export const GET = apiHandler(
 
 export const POST = apiHandler(
   async (req: NextRequest, usuario) => {
-    const body = await req.json();
+    const body = await leerJson(req);
     const nuevo = await crearUsuario(usuario, body);
     return NextResponse.json(nuevo, { status: 201 });
   },

@@ -20,6 +20,7 @@ export function ModalRegistrarPago({
   cliente,
   onPagoRegistrado,
 }: ModalRegistrarPagoProps) {
+  const [fecha, setFecha] = useState("");
   const [importe, setImporte] = useState("");
   const [medio, setMedio] = useState<"efectivo" | "transferencia" | "tarjeta_debito">("transferencia");
   const [observacion, setObservacion] = useState("");
@@ -47,6 +48,7 @@ export function ModalRegistrarPago({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          fecha: fecha ? new Date(fecha).toISOString() : undefined,
           importe: impCentavos,
           medio,
           observacion: observacion.trim() || undefined,
@@ -60,6 +62,7 @@ export function ModalRegistrarPago({
 
       onPagoRegistrado(data);
       onClose();
+      setFecha("");
       setImporte("");
       setObservacion("");
     } catch (err: unknown) {
@@ -113,6 +116,12 @@ export function ModalRegistrarPago({
           </div>
         </div>
 
+        <Input
+          label="Fecha y hora del pago"
+          type="datetime-local"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+        />
         <Select
           label="Medio de Pago *"
           value={medio}

@@ -72,9 +72,6 @@ export const facturas = sqliteTable("facturas", {
   vendedorNombre: text("vendedor_nombre"),
   total: integer("total").notNull(), // en centavos
   formaPago: text("forma_pago", { enum: ["contado", "tarjeta", "cuenta_corriente"] }).notNull(),
-  tarjetaTipo: text("tarjeta_tipo", { enum: ["debito", "credito"] }),
-  tarjetaMarca: text("tarjeta_marca"),
-  tarjetaUltimos4: text("tarjeta_ultimos4"),
   montoRecibido: integer("monto_recibido"),
   vuelto: integer("vuelto"),
   estado: text("estado", { enum: ["emitida", "anulada"] }).notNull().default("emitida"),

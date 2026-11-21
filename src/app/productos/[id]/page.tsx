@@ -102,15 +102,13 @@ export default function FichaProductoPage() {
             </div>
           </div>
 
-          {usuario.rol === "admin" && (
-            <Button
-              onClick={() => setModalMovimientoAbierto(true)}
-              className="text-xs font-bold bg-[#254d3c] hover:bg-[#34634d]"
-            >
-              <ArrowUpDown className="w-4 h-4 mr-1.5" />
-              Registrar movimiento manual
-            </Button>
-          )}
+          <Button
+            onClick={() => setModalMovimientoAbierto(true)}
+            className="text-xs font-bold bg-[#254d3c] hover:bg-[#34634d]"
+          >
+            <ArrowUpDown className="w-4 h-4 mr-1.5" />
+            Registrar movimiento manual
+          </Button>
         </div>
 
         {/* Tarjetas de Datos del Producto */}

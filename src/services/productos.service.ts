@@ -17,8 +17,7 @@ export async function listarProductos(
     activo?: boolean | string;
     page?: number;
     pageSize?: number;
-  },
-  usuario?: SesionUsuario
+  }
 ) {
   const page = Math.max(1, Number(filtros.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(filtros.pageSize) || 20));
@@ -26,14 +25,8 @@ export async function listarProductos(
 
   const conditions = [];
 
-  // Filtro de activo: por defecto solo activos, salvo que el admin pida "todos" o false
-  if (filtros.activo === "todos" && usuario?.rol === "admin") {
-    // No filtramos por activo
-  } else if (filtros.activo !== undefined && filtros.activo !== "todos") {
-    const esActivo = String(filtros.activo) === "true";
-    conditions.push(eq(productos.activo, esActivo));
-  } else {
-    conditions.push(eq(productos.activo, true));
+  if (filtros.activo !== "todos") {
+    conditions.push(eq(productos.activo, String(filtros.activo ?? true) === "true"));
   }
 
   // Búsqueda por código o descripción
@@ -154,9 +147,6 @@ export async function obtenerProducto(id: number) {
  * RF-P2: Alta de producto con control de código único y stock inicial
  */
 export async function crearProducto(usuario: SesionUsuario, rawData: unknown) {
-  if (usuario.rol !== "admin") {
-    throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede crear productos.");
-  }
 
   const data = productoCrearSchema.parse(rawData);
 
@@ -232,13 +222,9 @@ export async function crearProducto(usuario: SesionUsuario, rawData: unknown) {
  * RF-P2, RF-P3: Modificación o baja lógica de producto
  */
 export async function actualizarProducto(
-  usuario: SesionUsuario,
   id: number,
   rawData: unknown
 ) {
-  if (usuario.rol !== "admin") {
-    throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede modificar productos.");
-  }
 
   // Comprueba que no venga existencia en el payload
   if (rawData && typeof rawData === "object" && "existencia" in rawData) {

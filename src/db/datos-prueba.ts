@@ -21,7 +21,19 @@ export async function cargarDatosDePrueba() {
   console.log("-> Iniciando carga de datos de prueba...");
 
   // 1. Usuarios iniciales (RF-U3)
-  const passwordHash = await bcrypt.hash("Password123!", 10);
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const vendedorPassword = process.env.SEED_VENDEDOR_PASSWORD;
+  const esProduccion = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+  if (esProduccion && (!adminPassword || adminPassword.length < 12 ||
+    !vendedorPassword || vendedorPassword.length < 12 ||
+    adminPassword === vendedorPassword)) {
+    throw new Error("Configurá contraseñas iniciales distintas de al menos 12 caracteres en SEED_ADMIN_PASSWORD y SEED_VENDEDOR_PASSWORD.");
+  }
+
+  const [adminHash, vendedorHash] = await Promise.all([
+    bcrypt.hash(adminPassword || "Password123!", 10),
+    bcrypt.hash(vendedorPassword || "Password123!", 10),
+  ]);
 
   const [adminDb] = await db
     .insert(usuarios)
@@ -29,14 +41,14 @@ export async function cargarDatosDePrueba() {
       {
         nombre: "Ana Martínez",
         email: "admin@comercio.test",
-        passwordHash,
+        passwordHash: adminHash,
         rol: "admin",
         activo: true,
       },
       {
         nombre: "Lucía Pérez",
         email: "vendedor@comercio.test",
-        passwordHash,
+        passwordHash: vendedorHash,
         rol: "vendedor",
         activo: true,
       },
@@ -163,7 +175,7 @@ export async function cargarDatosDePrueba() {
 
     // Forma de pago: rotar contado, tarjeta y cuenta corriente
     let clienteId: number | null = null;
-    let pagoData: { forma: "contado" | "tarjeta" | "cuenta_corriente"; tarjeta?: { tipo: "credito" | "debito"; marca: string; ultimos4: string } } = { forma: "contado" };
+    let pagoData: { forma: "contado" | "tarjeta" | "cuenta_corriente" } = { forma: "contado" };
 
     if (i % 3 === 0) {
       // Cuenta corriente (clientes con cuenta habilitada)
@@ -174,14 +186,7 @@ export async function cargarDatosDePrueba() {
     } else if (i % 3 === 1) {
       // Tarjeta
       clienteId = i % 2 === 0 ? clientesCreados[i % clientesCreados.length].id : null;
-      pagoData = {
-        forma: "tarjeta",
-        tarjeta: {
-          tipo: i % 2 === 0 ? "credito" : "debito",
-          marca: i % 2 === 0 ? "Visa" : "Mastercard",
-          ultimos4: String(1000 + ((i * 123) % 9000)),
-        },
-      };
+      pagoData = { forma: "tarjeta" };
     } else {
       // Contado
       clienteId = i % 4 === 0 ? clientesCreados[i % clientesCreados.length].id : null;

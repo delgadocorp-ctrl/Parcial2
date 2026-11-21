@@ -112,16 +112,13 @@ export async function moverStock(
 }
 
 /**
- * RF-P4, RF-P5: Registro manual de ingreso o egreso de stock por un administrador
+ * RF-P4, RF-P5: Registro manual de ingreso o egreso de stock
  */
 export async function registrarMovimientoManual(
   usuario: SesionUsuario,
   productoId: number,
   rawData: unknown
 ) {
-  if (usuario.rol !== "admin") {
-    throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede registrar movimientos manuales.");
-  }
 
   const data = movimientoStockManualSchema.parse(rawData);
   const cantidadConSigno = data.tipo === "egreso" ? -Math.abs(data.cantidad) : Math.abs(data.cantidad);
