@@ -13,8 +13,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const iniciarSesion = async (correo: string, clave: string) => {
     setError(null);
     setIsLoading(true);
 
@@ -22,7 +21,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: correo.trim(), password: clave }),
       });
 
       const data = await res.json();
@@ -39,9 +38,9 @@ export default function LoginPage() {
     }
   };
 
-  const loginRapido = (mail: string, pass: string) => {
-    setEmail(mail);
-    setPassword(pass);
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    void iniciarSesion(email, password);
   };
 
   return (
@@ -97,40 +96,39 @@ export default function LoginPage() {
         </form>
 
         {process.env.NODE_ENV === "development" && (
-        <div className="pt-4 border-t border-brand-100 space-y-2.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-center text-brand-800/60">
-            Accesos de prueba para evaluación
-          </p>
+          <div className="pt-4 border-t border-brand-100 space-y-2.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-center text-brand-800/60">
+              Modo demo
+            </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => loginRapido("admin@comercio.test", "Password123!")}
-              className="p-2.5 rounded-xl border border-brand-200 bg-brand-50/60 hover:bg-brand-100/80 transition-colors text-left flex items-start gap-2 text-xs"
-            >
-              <ShieldCheck className="w-4 h-4 text-purple-700 flex-none mt-0.5" />
-              <div>
-                <span className="font-bold text-brand-950 block">Administrador</span>
-                <span className="text-[10px] text-brand-800/70">admin@comercio.test</span>
-              </div>
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => iniciarSesion("admin@comercio.test", "Password123!")}
+                className="p-2.5 rounded-xl border border-brand-200 bg-brand-50/60 hover:bg-brand-100/80 transition-colors text-left flex items-start gap-2 text-xs"
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-700 flex-none mt-0.5" />
+                <div>
+                  <span className="font-bold text-brand-950 block">Entrar como administrador</span>
+                  <span className="text-[10px] text-brand-800/70">admin@comercio.test</span>
+                </div>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => loginRapido("vendedor@comercio.test", "Password123!")}
-              className="p-2.5 rounded-xl border border-brand-200 bg-brand-50/60 hover:bg-brand-100/80 transition-colors text-left flex items-start gap-2 text-xs"
-            >
-              <UserCheck className="w-4 h-4 text-teal-700 flex-none mt-0.5" />
-              <div>
-                <span className="font-bold text-brand-950 block">Vendedor</span>
-                <span className="text-[10px] text-brand-800/70">vendedor@comercio.test</span>
-              </div>
-            </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => iniciarSesion("vendedor@comercio.test", "Password123!")}
+                className="p-2.5 rounded-xl border border-brand-200 bg-brand-50/60 hover:bg-brand-100/80 transition-colors text-left flex items-start gap-2 text-xs"
+              >
+                <UserCheck className="w-4 h-4 text-teal-700 flex-none mt-0.5" />
+                <div>
+                  <span className="font-bold text-brand-950 block">Entrar como vendedor</span>
+                  <span className="text-[10px] text-brand-800/70">vendedor@comercio.test</span>
+                </div>
+              </button>
+            </div>
           </div>
-          <p className="text-[10px] text-center text-gray-400">
-            Contraseña común: <code className="bg-gray-100 px-1 py-0.5 rounded">Password123!</code>
-          </p>
-        </div>
         )}
       </div>
     </div>
