@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import "dotenv/config";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
@@ -11,4 +12,17 @@ export const client = createClient({
   authToken,
 });
 
-export const db = drizzle(client, { schema });
+const dbPrincipal = drizzle(client, { schema });
+const contextoDb = new AsyncLocalStorage<typeof dbPrincipal>();
+
+export function conBaseDeDatos<T>(base: typeof dbPrincipal, ejecutar: () => T): T {
+  return contextoDb.run(base, ejecutar);
+}
+
+export const db = new Proxy(dbPrincipal, {
+  get(objetivo, propiedad) {
+    const base = contextoDb.getStore() ?? objetivo;
+    const valor = Reflect.get(base, propiedad);
+    return typeof valor === "function" ? valor.bind(base) : valor;
+  },
+});

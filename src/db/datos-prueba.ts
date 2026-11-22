@@ -17,12 +17,12 @@ export async function baseVacia(): Promise<boolean> {
   return Number(res?.count || 0) === 0;
 }
 
-export async function cargarDatosDePrueba() {
+export async function cargarDatosDePrueba(credencialesDemo?: { admin: string; vendedor: string }) {
   console.log("-> Iniciando carga de datos de prueba...");
 
   // 1. Usuarios iniciales (RF-U3)
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-  const vendedorPassword = process.env.SEED_VENDEDOR_PASSWORD;
+  const adminPassword = credencialesDemo?.admin ?? process.env.SEED_ADMIN_PASSWORD;
+  const vendedorPassword = credencialesDemo?.vendedor ?? process.env.SEED_VENDEDOR_PASSWORD;
   const esProduccion = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
   if (esProduccion && (!adminPassword || adminPassword.length < 12 ||
     !vendedorPassword || vendedorPassword.length < 12 ||

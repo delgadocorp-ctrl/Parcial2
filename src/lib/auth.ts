@@ -21,6 +21,7 @@ export interface SesionUsuario {
   nombre: string;
   email: string;
   rol: "admin" | "vendedor";
+  demo?: true;
 }
 
 export async function crearTokenSesion(usuario: SesionUsuario): Promise<string> {
@@ -29,21 +30,24 @@ export async function crearTokenSesion(usuario: SesionUsuario): Promise<string> 
     nombre: usuario.nombre,
     email: usuario.email,
     rol: usuario.rol,
+    ...(usuario.demo ? { demo: true } : {}),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(usuario.demo ? "2h" : "7d")
     .sign(obtenerClaveSesion());
 }
 
 export async function verificarTokenSesion(token: string): Promise<SesionUsuario | null> {
   try {
     const { payload } = await jwtVerify(token, obtenerClaveSesion());
+    if (payload.rol !== "admin" && payload.rol !== "vendedor") return null;
     return {
       id: Number(payload.id),
       nombre: String(payload.nombre),
       email: String(payload.email),
-      rol: payload.rol as "admin" | "vendedor",
+      rol: payload.rol,
+      ...(payload.demo === true ? { demo: true as const } : {}),
     };
   } catch {
     return null;
@@ -66,6 +70,8 @@ export async function obtenerUsuarioActual(): Promise<SesionUsuario> {
     throw new ApiError(401, "NO_AUTENTICADO", "Sesión inválida o expirada.");
   }
 
+  if (payload.demo) return payload;
+
   // Verificamos siempre contra la base de datos que el usuario exista y siga activo
   const [usuario] = await db
     .select()
@@ -85,14 +91,14 @@ export async function obtenerUsuarioActual(): Promise<SesionUsuario> {
   };
 }
 
-export async function establecerCookieSesion(token: string) {
+export async function establecerCookieSesion(token: string, demo = false) {
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 días
+    maxAge: demo ? 60 * 60 * 2 : 60 * 60 * 24 * 7,
   });
 }
 

@@ -28,7 +28,9 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const datos = await obtenerDatosTablero();
+  const datos = usuario.demo
+    ? await (await import("@/db/demo")).conDatosDemo(obtenerDatosTablero)
+    : await obtenerDatosTablero();
 
   return (
     <AppLayout usuario={usuario}>

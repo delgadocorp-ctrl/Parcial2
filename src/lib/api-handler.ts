@@ -20,6 +20,7 @@ type HandlerPublic<T = Record<string, string>> = (
 
 interface Options {
   roles?: Array<"admin" | "vendedor">;
+  permitirEnDemo?: boolean;
 }
 
 export async function leerJson(req: NextRequest): Promise<unknown> {
@@ -87,6 +88,14 @@ export function apiHandler<T = Record<string, string>>(
 
       if (options?.roles && !options.roles.includes(usuario.rol)) {
         throw new ApiError(403, "SIN_PERMISO", "El rol no alcanza para esta ruta.");
+      }
+
+      if (usuario.demo) {
+        if (req.method !== "GET" && req.method !== "HEAD" && !options?.permitirEnDemo) {
+          throw new ApiError(403, "DEMO_SOLO_LECTURA", "La demo permite consultar datos. Iniciá sesión con tu cuenta para guardar cambios.");
+        }
+        const { conDatosDemo } = await import("@/db/demo");
+        return await conDatosDemo(() => handler(req, usuario, { params }));
       }
 
       return await handler(req, usuario, { params });

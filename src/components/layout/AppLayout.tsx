@@ -29,6 +29,11 @@ export function AppLayout({ usuario, children }: AppLayoutProps) {
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {usuario.demo && (
+            <p className="mb-4 rounded-lg border border-brand-200 bg-white p-3 text-sm text-brand-900">
+              Modo demo · Datos de ejemplo de solo lectura
+            </p>
+          )}
           {children}
         </main>
       </div>
