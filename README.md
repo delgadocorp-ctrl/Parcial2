@@ -1,117 +1,112 @@
-# Sistema de Gestión Comercial — Segundo Parcial
+# Mostrador
 
-Sistema integral de gestión comercial minorista desarrollado para el 2º parcial de **Programación IV: Desarrollo Web** (Universidad Tecnológica Nacional).
+Mostrador es una aplicación web de gestión comercial minorista. Integra ventas, inventario y cuentas corrientes. Al confirmar una venta, registra el comprobante, actualiza las existencias y, si se vende a cuenta corriente, incorpora la deuda al historial del cliente.
 
----
+[Explorar Mostrador](https://parcial2-sigma.vercel.app/login)
 
-## 👥 Datos del Grupo y Comisión
-- **Comisión:** Comisión 1 (C1)
-- **Grupo:** **Grupo 1**
-- **Integrantes:**
-  - 63259 — Delgado Ojeda, Francisco Agustín
-  - 63660 — Gordillo, Oriana Daniela
-  - 54865 — Cequi, Sofía
-- **Horario de Defensa Asignado:** **Martes de 10:20 a 10:40 hs**
+## Funcionalidades
 
----
+| Módulo | Operaciones |
+| --- | --- |
+| Ventas | Carrito de mostrador, alta de clientes durante una venta, cálculo de vuelto y cobros de contado, con tarjeta simulada o a cuenta corriente. Historial con filtros y comprobantes internos imprimibles. |
+| Inventario | Catálogo por categorías, búsqueda por código o descripción, activación y desactivación de productos, entradas y salidas manuales, historial de movimientos y alertas de stock bajo. |
+| Clientes y cobranzas | Búsqueda por nombre o documento, límites de crédito, saldos por cliente, extracto de movimientos y registro de pagos con recibos internos imprimibles. |
+| Tablero | Ventas del día y del mes, deuda pendiente, productos bajo el mínimo, evolución de ventas y distribución por medio de pago. |
+| Acceso | Administración de usuarios y categorías para el rol administrador. El vendedor puede operar ventas, productos, stock, clientes y pagos. |
 
-## 🌐 Enlaces del Proyecto
-- **Repositorio de GitHub:** `https://github.com/delgadocorp-ctrl/Parcial2.git`
-- **Aplicación en Vercel:** pendiente de publicación.
-- **Base de Datos en Producción:** Turso (libSQL)
+El login de la aplicación publicada ofrece acceso directo en **modo demo** como administrador o vendedor. La demo usa un SQLite temporal con datos de ejemplo y acceso de solo lectura. Para registrar operaciones se requiere una cuenta con contraseña.
 
----
+## Arquitectura
 
-## 🔑 Credenciales de Acceso para Evaluación
-La base de prueba local incluye dos roles:
+La interfaz está construida con Next.js App Router, React, TypeScript y Tailwind CSS. Los Route Handlers exponen la API, Zod valida las entradas y los servicios aplican las reglas comerciales. Drizzle accede a SQLite local o a Turso en producción. El tablero usa Chart.js.
 
-| Rol | Correo / Usuario | Contraseña | Permisos |
-| :--- | :--- | :--- | :--- |
-| **Administrador** | `admin@comercio.test` | `Password123!` | Operación comercial y administración de usuarios. |
-| **Vendedor** | `vendedor@comercio.test` | `Password123!` | Ventas, productos, stock, clientes y pagos. |
-
----
-
-## 🛠️ Tecnologías Utilizadas
-
-- **Framework:** [Next.js](https://nextjs.org/) (v15 con App Router y Route Handlers)
-- **Lenguaje:** [TypeScript](https://www.typescriptlang.org/) (Tipado estricto)
-- **Estilos:** [Tailwind CSS](https://tailwindcss.com/)
-- **Componentes:** Componentes accesibles estilo [shadcn/ui](https://ui.shadcn.com/) con iconos de [Lucide React](https://lucide.dev/)
-- **Gráficos:** [Chart.js](https://www.chartjs.org/) con `react-chartjs-2`
-- **Base de Datos:** SQLite local en desarrollo mediante `@libsql/client`, libSQL en producción con [Turso](https://turso.tech/)
-- **ORM:** [Drizzle ORM](https://orm.drizzle.team/) con migraciones versionadas vía `drizzle-kit`
-- **Validación:** [Zod](https://zod.dev/) para esquemas compartidos cliente-servidor
-- **Autenticación:** Sesión segura basada en cookies firmadas `httpOnly`, `SameSite=Lax` con [jose](https://github.com/panva/jose) (JWT) y contraseñas hasheadas con [bcryptjs](https://github.com/dcodeIO/bcrypt.js)
-
----
-
-## 🚀 Puesta en Marcha Local
-
-El proyecto inicia localmente ejecutando los siguientes comandos:
-
-```bash
-# 1. Instalar dependencias
-pnpm install
-
-# 2. Configurar variables de entorno
-cp .env.example .env
-
-# 3. Aplicar migraciones sobre la base local SQLite
-pnpm run db:migrate
-
-# 4. Cargar datos de prueba iniciales en una base vacía (no ejecutarlo sobre datos existentes)
-pnpm run db:seed
-
-# 5. Iniciar servidor de desarrollo
-pnpm run dev
+```mermaid
+flowchart LR
+    UI["Navegador · React"] -->|"Peticiones HTTP / JSON"| API["API · Next.js"]
+    API -->|"Sesión y rol"| AUTH["Validación de acceso"]
+    API -->|"Datos validados"| SVC["Servicios comerciales"]
+    SVC --> DB["Drizzle ORM"]
+    DB -->|"Sesión normal"| MAIN[("SQLite local / Turso")]
+    DB -->|"Sesión demo"| DEMO[("SQLite temporal · solo lectura")]
 ```
 
-La aplicación quedará disponible en [http://localhost:3000](http://localhost:3000).
+Las sesiones usan JWT firmados en cookies `HttpOnly`. En las sesiones normales, el servidor confirma que el usuario sigue activo y consulta su rol vigente. Las contraseñas se almacenan como hashes de bcrypt.
 
-El comando `pnpm run build` ejecuta `src/db/deploy.ts` antes de compilar: aplica migraciones y carga datos iniciales únicamente si la base no tiene usuarios. En producción deben configurarse `DATABASE_URL` (o `TURSO_DATABASE_URL`), el token de Turso y un `SESSION_SECRET` de al menos 32 caracteres. Para inicializar una base de producción vacía, configurá `SEED_ADMIN_PASSWORD` y `SEED_VENDEDOR_PASSWORD` con contraseñas distintas de al menos 12 caracteres. Los correos de evaluación son los de la tabla. Compartí las contraseñas de producción con el evaluador por un canal privado. `SEED_RESET` no borra ni reemplaza datos existentes; solo permite inicializar una base vacía.
+| Ruta | Responsabilidad |
+| --- | --- |
+| [`src/app/`](src/app/) y [`src/components/`](src/components/) | Páginas, formularios y componentes de interfaz |
+| [`src/app/api/`](src/app/api/) | Rutas HTTP, sesión y respuestas |
+| [`src/services/`](src/services/) | Facturación, stock, clientes, cobros y usuarios |
+| [`src/db/`](src/db/) y [`drizzle/`](drizzle/) | Conexión, esquema y migraciones |
 
----
+## Flujo de una venta
 
-## 🏛️ Arquitectura y Capas del Sistema
+El cliente envía identificadores de productos y cantidades. El servidor toma los precios vigentes, calcula los importes y valida las reglas de la forma de pago. Dentro de una transacción guarda la factura, sus renglones y las salidas de stock. Para una venta a cuenta corriente también registra el débito.
 
-Siguiendo las pautas arquitectónicas del parcial, la aplicación respeta una estricta separación de responsabilidades:
+```mermaid
+sequenceDiagram
+    participant UI as Nueva venta
+    participant API as API de facturas
+    participant SV as Servicio de facturación
+    participant DB as Base de datos
 
-1. **Capa de Acceso a Datos (`src/db/`):** Define el esquema relacional (`schema.ts`), las conexiones compatibles local/Turso (`index.ts`) y las migraciones versionadas (`drizzle/`).
-2. **Capa de Servicios de Negocio (`src/services/`):** Concentra **el 100% de las reglas de negocio**. Todas las operaciones que tocan múltiples tablas se ejecutan en **transacciones atómicas**:
-   - `stock.service.ts`: `moverStock()` es la **única función autorizada** para modificar la existencia de un producto, aplicando actualización atómica (`UPDATE productos SET existencia = existencia + ? WHERE id = ? AND existencia + ? >= 0`) y registrando el movimiento de stock en el mismo acto.
-   - `facturas.service.ts`: `emitirFactura()` verifica stock, congela precios del catálogo, valida crédito y forma de pago, genera numeración correlativa sin huecos (`0001-00000001`), descuenta existencias y genera deuda en cuenta corriente en una sola transacción.
-   - `cuenta.service.ts`: `registrarPago()` valida que el pago no supere la deuda y registra el crédito y recibo correlativo (`R 0001-00000001`).
-   - `clientes.service.ts`: Calcula dinámicamente el saldo exacto a partir de los movimientos de cuenta corriente.
-   - `tablero.service.ts`: Indicadores del día, del mes, cuentas corrientes y ventas continuas de los últimos 30 días sin huecos.
-3. **Capa de Adaptadores API REST (`src/app/api/`):** Route Handlers organizados bajo convención `/api/*` que envuelven las llamadas a los servicios, validan sesión y rol, y traducen errores al contrato unificado `{ error: { code, message, details } }`.
-4. **Capa de Interfaz (`src/app/`, `src/components/`):** Vistas responsivas con panel lateral fijo, soporte completo para teclado en el mostrador, avisos claros y comprobantes imprimibles.
+    UI->>API: POST /api/facturas
+    API->>SV: Validar y emitir
+    SV->>DB: Consultar catálogo y existencias
+    SV->>DB: Iniciar transacción
+    SV->>DB: Guardar comprobante y renglones
+    SV->>DB: Actualizar stock y guardar movimientos
+    opt Venta a cuenta corriente
+        SV->>DB: Registrar débito del cliente
+    end
+    alt Operación válida
+        SV->>DB: Confirmar transacción
+        API-->>UI: 201 · comprobante emitido
+    else Falla durante la transacción
+        SV->>DB: Revertir cambios
+        API-->>UI: Error de la operación
+    end
+```
 
----
+La actualización de inventario impide que el stock quede negativo. Los comprobantes conservan los datos comerciales de la venta original, incluidos el precio unitario y la descripción de cada artículo. Los importes se almacenan en centavos enteros.
 
-## 📋 Cumplimiento de Requerimientos Funcionales y Reglas de Negocio
+El saldo de cuenta corriente se calcula como débitos menos créditos. Al registrar un pago, el servicio comprueba el saldo y guarda el pago y su crédito en la misma transacción. Los comprobantes son internos y el pago con tarjeta es simulado.
 
-- **RF-V1 a RF-V6 (Nueva Venta y Facturación):** Facturación en mostrador con selección de comprador (Consumidor Final o Cliente registrado), modal de alta rápida de clientes sin perder los ítems cargados, verificación de stock atómica y cálculo de precios desde el servidor.
-- **RF-V5 (Formas de Pago):**
-  - *Contado:* Cálculo automático de vuelto.
-  - *Tarjeta:* Pago simulado, sin ingreso de datos de tarjeta.
-  - *Cuenta Corriente:* Exclusiva para clientes registrados y habilitados; respeta el límite de crédito disponible.
-- **Comprobantes:** Vista imprimible del comprobante interno e historial con filtros y paginación.
-- **RF-P1 a RF-P7 (Productos y Stock):** Catálogo con búsqueda sin distinción de mayúsculas ni acentos, filtro por categoría y marca visible para productos bajo el stock mínimo. Historial cronológico de movimientos de stock. Gestión de categorías con protección ante desactivación si contienen productos activos (`CATEGORIA_EN_USO`).
-- **RF-C1 a RF-C7 (Clientes y Cuenta Corriente):** Listado de clientes con saldos calculados en tiempo real. Ficha individual con historial de movimientos cronológicos (débitos por ventas, créditos por pagos) con saldo acumulado renglón por renglón. Registro de pagos con fecha, importe y recibo interno numerado. Ranking de saldos deudores (`/clientes/saldos`).
-- **RF-U1 a RF-U5 (Usuarios y Seguridad):** Autenticación con cookies `httpOnly`, protección de rutas y permisos verificados en el servidor (un vendedor recibe `403 SIN_PERMISO` si invoca rutas de administración). Protección contra auto-desactivación del propio administrador. Cambio de contraseña propio y reseteo administrativo.
-- **RF-T1 a RF-T3 (Tablero e Indicadores):** KPI cards (ventas de hoy, del mes, cuentas corrientes, productos bajo mínimo), gráfico de evolución de ventas diarias de 30 días continuos con Chart.js, gráfico de ventas por medio de pago y ranking de los 5 artículos más vendidos del mes.
+## Instalación local
 
----
+Requisitos: Node.js y pnpm. Desde la raíz del repositorio, ejecutá:
 
-## 🛡️ Guía para la Defensa Individual
+```bash
+pnpm install
+cp .env.example .env
+pnpm db:deploy
+pnpm dev
+```
 
-Respuestas rápidas a las preguntas frecuentes del examen:
+`pnpm db:deploy` aplica las migraciones y carga datos iniciales si la base no tiene usuarios. Accedé a [localhost:3000](http://localhost:3000/login) con `admin@comercio.test` o `vendedor@comercio.test`. Definí las contraseñas iniciales de esas cuentas en `.env` antes de inicializar la base.
 
-- **¿Dónde se define el esquema de tablas?** En [`src/db/schema.ts`](./src/db/schema.ts).
-- **¿Dónde se conecta con la base de datos?** En [`src/db/index.ts`](./src/db/index.ts), detectando automáticamente SQLite local (`file:local.db`) o Turso (`libsql://...`).
-- **¿Cómo se aplican migraciones?** Con `drizzle-kit` mediante el script `src/db/migrate.ts` y automáticamente antes de cada build en `src/db/deploy.ts`.
-- **¿Dónde se controlan las existencias y la atomicidad?** En `moverStock()` dentro de [`src/services/stock.service.ts`](./src/services/stock.service.ts) mediante `UPDATE productos SET existencia = existencia + ? WHERE id = ? AND existencia + ? >= 0`.
-- **¿Cómo se almacenan los importes?** En centavos enteros (`integer`), eliminando cualquier error de precisión de coma flotante.
-- **¿Dónde se impide vender en cuenta corriente a consumidor final o exceder el límite?** En [`src/services/facturas.service.ts`](./src/services/facturas.service.ts).
-- **¿Dónde se verifica el rol de usuario?** En [`src/lib/api-handler.ts`](./src/lib/api-handler.ts) y dentro de cada servicio de negocio antes de ejecutar la acción.
+| Comando | Acción |
+| --- | --- |
+| `pnpm lint` | Ejecuta ESLint sobre el código de la aplicación. |
+| `pnpm db:generate` | Genera migraciones SQL a partir del esquema. |
+| `pnpm db:migrate` | Aplica las migraciones pendientes. |
+| `pnpm build` | Prepara la base y compila la aplicación. |
+| `pnpm start` | Inicia la aplicación compilada. |
+
+## Despliegue
+
+El entorno de producción usa **Vercel** para la aplicación y **Turso** para la persistencia. El comando de compilación es `pnpm build`. Las variables se configuran en el entorno de producción.
+
+| Variable | Uso |
+| --- | --- |
+| `DATABASE_URL` | URL de conexión de Turso |
+| `DATABASE_AUTH_TOKEN` | Token de la base con permisos de escritura |
+| `SESSION_SECRET` | Secreto de firma de al menos 32 caracteres |
+| `SEED_ADMIN_PASSWORD` | Contraseña inicial de `admin@comercio.test` |
+| `SEED_VENDEDOR_PASSWORD` | Contraseña inicial de `vendedor@comercio.test` |
+
+Las contraseñas de inicialización de producción deben ser distintas y tener al menos 12 caracteres. Se usan al preparar una base sin usuarios. [Configuración de ejemplo](.env.example) · [Inicialización de la base](src/db/deploy.ts)
+
+## Equipo
+
+Francisco Agustín Delgado Ojeda · Oriana Daniela Gordillo · Sofía Cequi
