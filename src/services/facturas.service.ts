@@ -6,6 +6,8 @@ import {
   clientes,
   usuarios,
   movimientosCuenta,
+  movimientosStock,
+  configuracion,
 } from "@/db/schema";
 import { eq, and, or, sql, desc, gte, lte } from "drizzle-orm";
 import { ApiError } from "@/lib/errors";
@@ -26,7 +28,9 @@ export async function proximoNumeroFactura(puntoVenta: number = 1) {
     .orderBy(desc(facturas.numero))
     .limit(1);
 
-  const siguiente = (ultima?.numero || 0) + 1;
+  const [secuencia] = await db.select().from(configuracion)
+    .where(eq(configuracion.clave, `factura_ultimo_numero_${puntoVenta}`)).limit(1);
+  const siguiente = Math.max(ultima?.numero || 0, Number(secuencia?.valor) || 0) + 1;
   return {
     numeroFormateado: formatearNumeroFactura(puntoVenta, siguiente),
   };
@@ -179,7 +183,9 @@ export async function emitirFactura(usuario: SesionUsuario, rawData: unknown) {
       .orderBy(desc(facturas.numero))
       .limit(1);
 
-    const numero = (ultima?.numero || 0) + 1;
+    const [secuencia] = await tx.select().from(configuracion)
+      .where(eq(configuracion.clave, `factura_ultimo_numero_${puntoVenta}`)).limit(1);
+    const numero = Math.max(ultima?.numero || 0, Number(secuencia?.valor) || 0) + 1;
     const numeroFormateado = formatearNumeroFactura(puntoVenta, numero);
     const fecha = new Date().toISOString();
 
@@ -485,4 +491,40 @@ export async function obtenerFactura(id: number) {
     },
     ...(anulacionInfo ? { anulacion: anulacionInfo } : {}),
   };
+}
+
+/** Elimina el comprobante y revierte sus efectos dentro de una sola transacción. */
+export async function eliminarFactura(id: number, usuario: SesionUsuario) {
+  if (usuario.rol !== "admin") {
+    throw new ApiError(403, "SIN_PERMISO", "Solo el administrador puede eliminar facturas.");
+  }
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new ApiError(400, "VALIDACION", "El identificador de factura no es válido.");
+  }
+  return db.transaction(async (tx) => {
+    const [factura] = await tx.select().from(facturas).where(eq(facturas.id, id)).limit(1);
+    if (!factura) throw new ApiError(404, "NO_ENCONTRADO", "Factura no encontrada.");
+
+    if (factura.estado === "emitida") {
+      const items = await tx.select().from(facturaItems).where(eq(facturaItems.facturaId, id));
+      for (const item of items) {
+        await moverStock(tx, {
+          productoId: item.productoId, cantidad: item.cantidad, tipo: "anulacion",
+          motivo: `Eliminación de factura ${factura.numeroFormateado}`,
+          usuarioId: usuario.id,
+        });
+      }
+    }
+    // Conservar la trazabilidad del stock sin referencias a un comprobante eliminado.
+    await tx.update(movimientosStock).set({ facturaId: null }).where(eq(movimientosStock.facturaId, id));
+    await tx.delete(movimientosCuenta).where(eq(movimientosCuenta.facturaId, id));
+    await tx.delete(facturaItems).where(eq(facturaItems.facturaId, id));
+    // No reutilizar números de comprobantes eliminados, incluso al borrar el último.
+    const clave = `factura_ultimo_numero_${factura.puntoVenta}`;
+    await tx.insert(configuracion).values({ clave, valor: String(factura.numero) })
+      .onConflictDoUpdate({ target: configuracion.clave,
+        set: { valor: sql`cast(max(cast(${configuracion.valor} as integer), ${factura.numero}) as text)` } });
+    await tx.delete(facturas).where(eq(facturas.id, id));
+    return { message: "Factura eliminada correctamente." };
+  });
 }

@@ -8,7 +8,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/Button";
 
 import { formatearMoneda, formatearFechaHora } from "@/lib/formatters";
-import { Printer, ArrowLeft, AlertOctagon } from "lucide-react";
+import { Printer, ArrowLeft, AlertOctagon, Trash2 } from "lucide-react";
 
 export default function DetalleFacturaPage() {
   const params = useParams();
@@ -19,6 +19,26 @@ export default function DetalleFacturaPage() {
   const [factura, setFactura] = useState<Awaited<ReturnType<typeof import("@/services/facturas.service").obtenerFactura>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
+
+  const eliminar = async () => {
+    if (!factura || eliminando) return;
+    if (!window.confirm(`¿Eliminar la factura ${factura.numeroFormateado}? Se devolverá el stock de la venta y se ajustará la cuenta corriente. Esta acción es permanente.`)) return;
+    setEliminando(true);
+    setErrorEliminar(null);
+    try {
+      const res = await fetch(`/api/facturas/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || "No se pudo eliminar la factura.");
+      router.push("/ventas");
+      router.refresh();
+    } catch (err) {
+      setErrorEliminar(err instanceof Error ? err.message : "No se pudo eliminar la factura.");
+      setEliminando(false);
+    }
+  };
 
   const cargarFactura = useCallback(async () => {
     setIsLoading(true);
@@ -87,7 +107,12 @@ export default function DetalleFacturaPage() {
             Volver a facturas
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {usuario.rol === "admin" && (
+              <Button variant="danger" size="sm" isLoading={eliminando} onClick={eliminar}>
+                <Trash2 className="w-3.5 h-3.5" /> Eliminar factura
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -99,6 +124,8 @@ export default function DetalleFacturaPage() {
             </Button>
           </div>
         </div>
+
+        {errorEliminar && <p role="alert" className="no-print text-sm text-red-700">{errorEliminar}</p>}
 
         {/* Aviso de factura anulada */}
         {factura.estado === "anulada" && factura.anulacion && (
