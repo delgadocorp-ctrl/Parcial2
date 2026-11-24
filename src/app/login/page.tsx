@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ShieldCheck, UserCheck } from "lucide-react";
+import { ShieldCheck, UserCheck, Users } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -128,6 +128,23 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+      </div>
+
+      {/* Integrantes del proyecto */}
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-white/95 backdrop-blur-sm border border-brand-200 rounded-2xl px-4 py-3 shadow-md z-10 flex items-center gap-3">
+        <div className="text-right">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-brand-800/60 mb-0.5">
+            Integrantes del proyecto
+          </p>
+          <div className="text-xs text-brand-950 font-medium space-y-0.5">
+            <div>Francisco Agustín Delgado Ojeda</div>
+            <div>Oriana Daniela Gordillo</div>
+            <div>Sofía Cequi</div>
+          </div>
+        </div>
+        <div className="hidden sm:flex w-9 h-9 rounded-xl bg-brand-50 border border-brand-200/80 text-brand-800 items-center justify-center flex-none">
+          <Users className="w-4 h-4" />
+        </div>
       </div>
     </div>
   );
